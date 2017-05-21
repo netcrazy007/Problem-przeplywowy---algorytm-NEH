@@ -4,49 +4,35 @@
 #include "stdafx.h"
 #include <iostream>
 #include <vector>
-#include <list>
 #include <algorithm>
 #include <fstream>
 #include <algorithm>
 #include <cmath>
-
+#include <tuple>
+#include <limits>
 
 using namespace std;
+
 vector<vector<int>> Read(string); // funkcja czytajaca
-void sort(vector<vector<int>>&); // funkcja sortuj¹ca rosn¹co (niemalej¹co)
-void best_insert(vector<vector<int>>&, vector<int>); // funkcja wstawiajaca zadanie w liste
-int main()
-{
-	string nazwa = "przyklady/neh_1_"; //<--- numer partii danych
-	
-	vector<vector<int> > processingTimes = Read(nazwa + "in.txt"); 
-	vector<vector<int> > result_processingTimes;
-	sort(processingTimes);
-	//for (int i = 0; i < processingTimes.size(); i++) {
-		//for (int j = 0; j < processingTimes[i].size(); j++) {
-			//result_processingTimes
-		//}
-	//}
-	//processingTimes.
-	vector<int> v;
-	v.push_back(0);
-	v.push_back(0);
-	v.push_back(0);
+void sort(vector<vector<int>>&); // funkcja sortuj¹ca malej¹co (nierosn¹co)
+vector<vector<int>> best_insert(vector<vector<int>> , vector<int>); // funkcja wstawiajaca zadanie w liste
+int calculateTime(vector<vector<int>>); // zwraca czas potrzebny do wykonania zadan w podanej permutacji
+vector<vector<int>> NEH(vector<vector<int>>); // zwraca vector permutacji na podstawie algorytmu NEH
 
-	best_insert(processingTimes,v);
-	/*for (int i = 0; i < processingTimes.size(); i++){
-		for (int j = 0; j < processingTimes[i].size(); j++){
-			cout << processingTimes[i][j] << " ";
-		}
-		cout << endl;
-	}*/
-	// process
-	int cMax = -1;
+int main(){
+	string nazwa = "3"; //<--- numer partii danych do wybrania od 1 do 10
+	vector<vector<int> > processingTimes = Read("przyklady/neh_"+nazwa+"_in.txt"); 
 
-	// ...
+	processingTimes = NEH(processingTimes);
+	int cMax = calculateTime(processingTimes);
 
 	// print result
-	cout << cMax << endl;
+	cout << "cMax=" << cMax << endl;
+	fstream plik("przyklady/neh_" + nazwa + "_out.txt");
+	int poprawna;
+	plik >> poprawna;
+	cout << "Poprawna wartosc to: " << poprawna << endl;
+	plik.close();
 	cin.get();
 	return 0;
 }
@@ -84,28 +70,17 @@ void sort(vector<vector<int>>& processingTimes) {
 		for (unsigned i = 0; i < b.size(); i++) {
 			sum_b += b[i];
 		}
-		return sum_a > sum_b;
+		return sum_a < sum_b;
 	});
 }
-void best_insert(vector<vector<int>>& processingTimes, vector<int> newProcess) {
-	unsigned m = processingTimes[0].size();
-	unsigned n = processingTimes.size();
-	int **time = new int*[m]; // tablica czasow time[maszyna][zadanie]
-	list<int> finishTime;
-	vector<vector<vector<int>>> permutationList;
+vector<vector<int>> best_insert(vector<vector<int>> processingTimes, vector<int> newProcess) {
 
-	cout << "PRZYCHODZACE" << endl;
-	for (unsigned i = 0; i < n; i++) {//wyswietlanie
-		for (unsigned j = 0; j < m; j++) {
-			cout << " " << processingTimes[i][j];
-		}cout << endl;
-	}
+	unsigned m = processingTimes[0].size(); // ilosc maszyn
+	unsigned n = processingTimes.size(); // ilosc zadan
+	vector<vector<vector<int>>> permutationList; // wektor mo¿liwych permutacji
+	tuple<int, int> bestPermutationTime(-1,numeric_limits<int>::max());	// czasy koncowe kazdej permutacji <0-nr permutacji,1 - czas permutacji>
+	int cMax;
 
-	cout << "Proces" << endl;
-	for (unsigned i = 0; i < m; i++) {
-		cout << " " << newProcess[i];
-	}cout << endl;
-	
 	for (unsigned i = 0; i < n+1; i++) {
 	vector<vector<int>> PER;
 		for (unsigned j = 0; j < n; j++) {
@@ -117,9 +92,30 @@ void best_insert(vector<vector<int>>& processingTimes, vector<int> newProcess) {
 		if (i == n) {
 			PER.push_back(newProcess);
 		}
-		permutationList.push_back(PER);
-	}
 
+		permutationList.push_back(PER); // tworzenie vektora z permutacjami dla wszystkich mo¿liwoœci
+		cMax = calculateTime(PER); // obliczanie czasu 
+		if (cMax < get<1>(bestPermutationTime)) { // ustalanie najlepszej wartosci tablicy
+			get<0>(bestPermutationTime) = i;
+			get<1>(bestPermutationTime) = cMax;
+		}
+	}
+	// wyswietlanie numeru 
+	cout << n << endl;
+	/*
+	// wyswietlanie wydarzen przychodzacych
+	cout << "PRZYCHODZACE" << endl;
+	for (unsigned i = 0; i < n; i++) {//wyswietlanie
+	for (unsigned j = 0; j < m; j++) {
+	cout << " " << processingTimes[i][j];
+	}cout << endl;
+	}
+	// proces dodawany
+	cout << "Proces" << endl;
+	for (unsigned i = 0; i < m; i++) {
+	cout << " " << newProcess[i];
+	}cout << endl;
+	// permutacje z wydarzen przychodzacych i procesu dodawany
 	for (unsigned k = 0; k < permutationList.size(); k++) {
 		cout << "PERMUTACJE" << endl;
 		for (unsigned i = 0; i < permutationList[0].size(); i++) {//wyswietlanie
@@ -128,32 +124,50 @@ void best_insert(vector<vector<int>>& processingTimes, vector<int> newProcess) {
 			}cout << endl;
 		}
 	}
-	
-		
-	for (unsigned i = 0; i < n+1; i++) {
+	//*/
+	return permutationList.at(get<0>(bestPermutationTime));
+}
+int calculateTime(vector<vector<int>> processingTimes ){
+	unsigned m = processingTimes[0].size(); // ilosc maszyn
+	unsigned n = processingTimes.size(); // ilosc zadan
+	int **time = new int*[n]; // dwuwymiarowa tablica czasow time[maszyna][zadanie]
+	int cMax;
+
+	for (unsigned i = 0; i < n; i++) {
 		time[i] = new int[m];
-		for (unsigned j = 0; j < m; j++)
-			time[i][j] = 0;
 	}
-	
-	for (unsigned i = 0; i < m; i++) {
-		time[0][i] = time[0][i]+ permutationList[0][0][i];
+	time[0][0] = processingTimes[0][0];
+	for (unsigned i = 1; i < m; i++) {
+		time[0][i] = time[0][i - 1] + processingTimes[0][i];
 	}
 	for (unsigned i = 1; i < n; i++) {
-		time[i][0] = time[i - 1][0] + permutationList[0][i][0];
+		time[i][0] = time[i - 1][0] + processingTimes[i][0];
 		for (unsigned j = 1; j < m; j++) {
-			time[i][j] = max(time[i - 1][j],time[i][j-1]) + permutationList[0][i][j];
+			time[i][j] = max(time[i - 1][j], time[i][j - 1]) + processingTimes[i][j];
 		}
 	}
-	//finishTime.push_back(time[n - 1][n - 1]);
-	cout << "WYNIKI" << endl;
-	for (unsigned i = 0; i < n+1; i++) {//wyswietlanie
+	/*
+	cout << "WYNIK PERMUTACJI" << endl; // wyswietlanie
+	for (unsigned i = 0; i < n; i++) {
 		for (unsigned j = 0; j < m; j++) {
 			cout << "[i" << i << "][j" << j << "]" << time[i][j];
 		}cout << endl;
+	}*/
+	cMax= time[n - 1][m - 1];
+	for (unsigned i = 0; i < n; i++) {
+		delete[] time[i];
 	}
-	//for (unsigned i = 0; i < n+1; i++) {
-	//	delete[] time[i];	
-	//}
-	//delete[] time;
+	delete[] time;
+	return cMax;
+}
+vector<vector<int>> NEH(vector<vector<int>>processingTimes) {
+	vector<vector<int> > result_processingTimes;
+	sort(processingTimes);
+	result_processingTimes.push_back(processingTimes.back());
+	processingTimes.pop_back();
+	while (!processingTimes.empty()) {
+		result_processingTimes = best_insert(result_processingTimes, processingTimes.back());
+		processingTimes.pop_back();
+	}
+	return result_processingTimes;
 }
